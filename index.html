@@ -402,22 +402,12 @@
 
 <script>
   // -------------------------------------------------------------
-  // إعدادات الربط بمشروع Supabase (المستخرج من لوحة التحكم الخاصة بك)
+  // إعدادات الربط بمشروع Supabase (المفاتيح مدمجة وجاهزة 100%)
   // -------------------------------------------------------------
-  const SUPABASE_PROJECT_REF = "fmlagjtxncpqbeoqldsq";
-  const SUPABASE_URL = `https://${SUPABASE_PROJECT_REF}.supabase.co`;
-  
-  // قم بلصق مفتاح anon key هنا إذا كان متوفراً لديك، أو أدخله عند تشغيل الصفحة
-  let SUPABASE_ANON_KEY = localStorage.getItem('sb_publishable_4Oq_25K3zLv-RCvfzvAyiQ_s81_3wiD') || "";
-  
-  if (!SUPABASE_ANON_KEY) {
-    SUPABASE_ANON_KEY = prompt("يرجى إدخال مفتاح الوصول العام (anon public key) الخاص بمشروع Supabase للربط الفوري:");
-    if (SUPABASE_ANON_KEY) {
-      localStorage.setItem('sb_anon_key', SUPABASE_ANON_KEY.trim());
-    }
-  }
+  const SUPABASE_URL = "https://fmlagjtxncpqbeoqldsq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_4Oq_25K3zLv-RCvfzvAyiQ_s81_3wiD";
 
-  const sbClient = (SUPABASE_ANON_KEY) ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+  const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let systemLists = {
     shifts: ["صباحي", "مسائي", "ليلي"],
@@ -438,10 +428,8 @@
 
   window.addEventListener('DOMContentLoaded', async () => {
     loadLocalSettings();
-    if (sbClient) {
-      await fetchDropdownsFromSupabase();
-      await loadHeaderSettings();
-    }
+    await fetchDropdownsFromSupabase();
+    await loadHeaderSettings();
     populateSelects();
     addNewItemRow();
   });
@@ -459,7 +447,6 @@
   }
 
   async function fetchDropdownsFromSupabase() {
-    if (!sbClient) return;
     try {
       const { data, error } = await sbClient.from('system_dropdowns').select('*').order('sort_order', { ascending: true });
       if (!error && data && data.length > 0) {
@@ -530,8 +517,6 @@
 
   async function submitTourToSupabase(e) {
     e.preventDefault();
-    if (!sbClient) return alert('يرجى ضبط مفاتيح Supabase أولاً للتمكن من الحفظ.');
-
     const btn = document.getElementById('btnSubmitTour');
     const msg = document.getElementById('msgAlert');
     btn.disabled = true;
@@ -595,7 +580,6 @@
   }
 
   async function fetchInspectionData() {
-    if (!sbClient) return;
     document.getElementById('recordsCountLbl').innerText = 'جاري جلب البيانات...';
     try {
       const { data, error } = await sbClient
@@ -665,7 +649,6 @@
   }
 
   async function toggleStatus(itemId, currentStatus) {
-    if (!sbClient) return;
     const nextStatus = (currentStatus === 'تمت المعالجة') ? 'بانتظار المعالجة' : 'تمت المعالجة';
     const { error } = await sbClient.from('inspection_items').update({ status: nextStatus }).eq('id', itemId);
     if (!error) fetchInspectionData();
@@ -698,7 +681,7 @@
   }
 
   async function uploadProfileAvatar(input) {
-    if (!input.files || input.files.length === 0 || !sbClient) return;
+    if (!input.files || input.files.length === 0) return;
     const file = input.files[0];
     const path = `user_avatar_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
     const { error } = await sbClient.storage.from('avatars').upload(path, file);
@@ -731,9 +714,7 @@
 
     localStorage.setItem('hospital_header_settings', JSON.stringify(payload));
 
-    if (sbClient) {
-      await sbClient.from('report_settings').upsert({ id: '00000000-0000-0000-0000-000000000001', ...payload });
-    }
+    await sbClient.from('report_settings').upsert({ id: '00000000-0000-0000-0000-000000000001', ...payload });
 
     const name = document.getElementById('officerNameInput').value;
     const role = document.getElementById('officerRoleInput').value;
@@ -745,10 +726,11 @@
 
   async function loadHeaderSettings() {
     let s = null;
-    if (sbClient) {
+    try {
       const { data } = await sbClient.from('report_settings').select('*').single();
       if (data) s = data;
-    }
+    } catch(e) {}
+
     if (!s) {
       const cached = localStorage.getItem('hospital_header_settings');
       if (cached) s = JSON.parse(cached);
