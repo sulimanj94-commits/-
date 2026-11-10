@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نظام إدارة الجودة وسلامة المرافق - مستشفى الشهيد أبو حرب الملصي</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- مكتبة Supabase JS الرسمية -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --primary: #0284c7;
+      --primary-dark: #0f766e;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+    }
+
+    body.dark-mode {
+      --bg: #0b1329;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; font-family: 'Cairo', sans-serif; margin: 0; padding: 0; }
+    body { background-color: var(--bg); color: var(--text-main); padding: 16px 12px 60px; transition: background 0.3s, color 0.3s; }
+    .container { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+    /* شريط المستخدم العلوي والمظهر */
+    .user-header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card-bg);
+      padding: 12px 20px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+    .user-profile-badge {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .avatar-img {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--primary);
+      background: #f1f5f9;
+    }
+
+    .tabs-nav {
+      display: flex;
+      gap: 8px;
+      background: var(--card-bg);
+      padding: 6px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 12px;
+      text-align: center;
+      background: transparent;
+      border: none;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-muted);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .tab-btn.active {
+      background: var(--primary);
+      color: #ffffff;
+    }
+
+    .card-panel {
+      background: var(--card-bg);
+      border-radius: 14px;
+      padding: 22px;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    }
+
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 14px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+    .grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 14px; }
+
+    label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 5px; color: var(--text-main); }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 13.5px;
+      outline: none;
+      background: var(--bg);
+      color: var(--text-main);
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+
+    .item-box {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 14px;
+      position: relative;
+    }
+    .item-top { display: grid; grid-template-columns: 1.8fr 1.2fr 1fr 40px; gap: 8px; margin-bottom: 8px; }
+    .item-bot { display: grid; grid-template-columns: 1.2fr 1.2fr; gap: 8px; margin-top: 8px; }
+
+    .btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 13.5px;
+      transition: 0.2s;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-add { background: transparent; color: var(--primary); border: 1.5px dashed var(--primary); width: 100%; margin-bottom: 16px; padding: 12px; }
+    .btn-del { background: #fee2e2; color: #e11d48; border-radius: 6px; cursor: pointer; border: none; font-size: 16px; }
+
+    /* أنماط الجداول والعرض */
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    th, td { padding: 8px; border: 1px solid var(--border); text-align: center; }
+    th { background: rgba(0,0,0,0.04); }
+
+    .btn-status {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 11.5px;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+    .status-done { background: #dcfce7; color: #15803d; border-color: #86efac; }
+    .status-pending { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
+
+    .badge-img {
+      background: #e0f2fe;
+      color: #0369a1;
+      padding: 2px 7px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-size: 11px;
+      margin: 1px;
+      display: inline-block;
+      font-weight: 700;
+    }
+
+    #msgAlert {
+      display: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: 700;
+      text-align: center;
+      margin-top: 14px;
+    }
+
+    /* أنماط نافذة الطباعة */
+    #printSection { display: none; }
+    @media print {
+      body * { visibility: hidden; }
+      #printSection, #printSection * { visibility: visible; }
+      #printSection {
+        display: block;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        background: #fff;
+        color: #000;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .grid-2, .grid-3, .grid-4, .grid-5, .item-top, .item-bot { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- شريط المستخدم العلوي والمظهر -->
+  <div class="user-header-bar">
+    <div class="user-profile-badge">
+      <img id="topBarAvatar" src="https://via.placeholder.com/150" class="avatar-img" alt="صورة البروفايل">
+      <div>
+        <h4 id="topBarName" style="font-size: 15px; font-weight:800;">نسيم النعامي</h4>
+        <span id="topBarRole" style="font-size:12px; color:var(--text-muted);">مسؤول الجودة ورئيس التمريض</span>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <button type="button" class="btn" style="background:var(--border);" onclick="toggleDarkMode()">🌓 الوضع الليلي</button>
+    </div>
+  </div>
+
+  <!-- التبويبات -->
+  <div class="tabs-nav">
+    <button type="button" class="tab-btn active" id="tab1" onclick="switchView('tour')">📋 تسجيل جولة تفتيش</button>
+    <button type="button" class="tab-btn" id="tab2" onclick="switchView('records')">📄 سجل المتابعة والتقارير</button>
+    <button type="button" class="tab-btn" id="tab3" onclick="switchView('settings')">⚙️ إعدادات المظهر وهوية التقارير</button>
+  </div>
+
+  <!-- 1. شاشة تسجيل الجولة -->
+  <div id="viewTour" class="card-panel">
+    <h3 style="margin-bottom:14px; font-weight:800; text-align:center;">سجل المرور والتفتيش اليومي لسلامة وجودة المرافق</h3>
+    <form id="tourForm" onsubmit="submitTourToSupabase(event)">
+      <div class="grid-3">
+        <div>
+          <label>أخصائي الجودة القائم بالمرور *</label>
+          <input type="text" id="inspectorName" required value="نسيم النعامي">
+        </div>
+        <div>
+          <label>الوردية / الفترة *</label>
+          <select id="tourShift" required></select>
+        </div>
+        <div>
+          <label>القسم المستهدف *</label>
+          <select id="tourDept" required></select>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;">
+        <label style="font-size:14.5px; color:var(--primary); font-weight:800;">الملاحظات المرصودة خلال المرور:</label>
+        <div id="itemsContainer"></div>
+        <button type="button" class="btn btn-add" onclick="addNewItemRow()">+ إضافة ملاحظة / بند آخر للجولة</button>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width:100%; padding:14px; font-size:15px;" id="btnSubmitTour">
+        اعتماد وحفظ تقرير المرور على السحابة
+      </button>
+      <div id="msgAlert"></div>
+    </form>
+  </div>
+
+  <!-- 2. سجل المتابعة وتصدير التقارير -->
+  <div id="viewRecords" class="card-panel" style="display:none;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+      <div>
+        <h3 style="font-weight:800; margin:0;">📄 سجل المتابعة وحالة المعالجة</h3>
+        <span id="recordsCountLbl" style="font-size:12.5px; color:var(--primary); font-weight:700;">جاري تحميل البيانات...</span>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn" style="background:#dc2626; color:#fff;" onclick="printOfficialDocument('log')">🖨️ طباعة السجل (أفقي)</button>
+        <button type="button" class="btn" style="background:#0f766e; color:#fff;" onclick="printOfficialDocument('memo')">📝 طباعة مذكرة الإحالة (رأسي)</button>
+      </div>
+    </div>
+
+    <!-- فلاتر البحث -->
+    <div class="grid-5" style="background:var(--bg); padding:12px; border-radius:10px; margin-bottom:16px;">
+      <div>
+        <label>من تاريخ:</label>
+        <input type="date" id="filterFrom" onchange="applyFilters()">
+      </div>
+      <div>
+        <label>إلى تاريخ:</label>
+        <input type="date" id="filterTo" onchange="applyFilters()">
+      </div>
+      <div>
+        <label>القسم:</label>
+        <select id="filterDept" onchange="applyFilters()"><option value="">-- كل الأقسام --</option></select>
+      </div>
+      <div>
+        <label>النوع:</label>
+        <select id="filterType" onchange="applyFilters()"><option value="">-- كل الأنواع --</option></select>
+      </div>
+      <div>
+        <label>حالة المعالجة:</label>
+        <select id="filterStatus" onchange="applyFilters()"><option value="">-- كل الحالات --</option></select>
+      </div>
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>التاريخ</th>
+            <th>رقم الطلب</th>
+            <th>الملاحظة بالتفصيل</th>
+            <th>القسم - الموقع</th>
+            <th>النوع</th>
+            <th>الأهمية</th>
+            <th>المستلم</th>
+            <th>الإجراء المطلوب</th>
+            <th>الحالة</th>
+            <th>الصور</th>
+          </tr>
+        </thead>
+        <tbody id="recordsTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 3. شاشة إعدادات المظهر والبروفايل وترويسة التقارير يدوياً -->
+  <div id="viewSettings" class="card-panel" style="display:none;">
+    <h3 style="font-weight:800; margin-bottom:16px;">⚙️ إعدادات المظهر، البروفايل، وترويسة التقارير</h3>
+    
+    <div class="grid-3" style="margin-bottom:24px;">
+      <div style="background:var(--bg); padding:14px; border-radius:10px;">
+        <label>صورة البروفايل الشخصي:</label>
+        <input type="file" id="avatarFileInput" accept="image/*" onchange="uploadProfileAvatar(this)">
+        <small style="color:var(--text-muted); display:block; margin-top:5px;">يتم الرفع والتخزين فوراً في السحابة</small>
+      </div>
+      <div style="background:var(--bg); padding:14px; border-radius:10px;">
+        <label>لون هوية الواجهة (Theme Color):</label>
+        <input type="color" id="themeColorPicker" value="#0284c7" style="height:44px; padding:2px;" onchange="updateThemeColor(this.value)">
+      </div>
+      <div style="background:var(--bg); padding:14px; border-radius:10px;">
+        <label>اسم المشرف والمسمى الوظيفي:</label>
+        <input type="text" id="officerNameInput" value="نسيم النعامي" style="margin-bottom:6px;">
+        <input type="text" id="officerRoleInput" value="مسؤول الجودة ورئيس التمريض">
+      </div>
+    </div>
+
+    <h4 style="font-weight:800; color:var(--primary); margin-bottom:12px;">تخصيص ترويسة التقارير الرسمية والهوامش (Header & Margins)</h4>
+    <div class="grid-4">
+      <div>
+        <label>الدولة (عربي):</label>
+        <input type="text" id="repCountry" value="الجمهورية اليمنية">
+      </div>
+      <div>
+        <label>الوزارة (عربي):</label>
+        <input type="text" id="repMinistry" value="وزارة الصحة والبيئة">
+      </div>
+      <div>
+        <label>المكتب (عربي):</label>
+        <input type="text" id="repOffice" value="مكتب الصحة ــ محافظة صنعاء">
+      </div>
+      <div>
+        <label>اسم المستشفى (عربي):</label>
+        <input type="text" id="repFacility" value="مستشفى الشهيد أبو حرب الملصي">
+      </div>
+    </div>
+
+    <div class="grid-4" style="margin-top:10px;">
+      <div>
+        <label>الدولة (English):</label>
+        <input type="text" id="repCountryEn" value="Republic of Yemen">
+      </div>
+      <div>
+        <label>الوزارة (English):</label>
+        <input type="text" id="repMinistryEn" value="Ministry of Health and Environment">
+      </div>
+      <div>
+        <label>المكتب (English):</label>
+        <input type="text" id="repOfficeEn" value="Health office - Sanaa Governorate">
+      </div>
+      <div>
+        <label>المستشفى (English):</label>
+        <input type="text" id="repFacilityEn" value="Martyr Abu Harb AL-Molsi Hospital">
+      </div>
+    </div>
+
+    <div class="grid-3" style="margin-top:14px;">
+      <div>
+        <label>رابط الشعار (Logo URL):</label>
+        <input type="text" id="repLogo" value="https://i.postimg.cc/GmjLQ8hf/Gemini-Generated-Image-xxu8rfxxu8rfxxu8.jpg">
+      </div>
+      <div>
+        <label>الهوامش (العلوي / السفلي بالنقاط pt):</label>
+        <div style="display:flex; gap:8px;">
+          <input type="number" id="repMarginTop" value="5" placeholder="أعلى">
+          <input type="number" id="repMarginBottom" value="10" placeholder="أسفل">
+        </div>
+      </div>
+      <div>
+        <label>الهوامش (الأيمن / الأيسر بالنقاط pt):</label>
+        <div style="display:flex; gap:8px;">
+          <input type="number" id="repMarginRight" value="12" placeholder="يمين">
+          <input type="number" id="repMarginLeft" value="12" placeholder="يسار">
+        </div>
+      </div>
+    </div>
+
+    <button type="button" class="btn btn-primary" style="margin-top:18px; padding:12px 28px;" onclick="saveHeaderSettings()">
+      💾 حفظ إعدادات الهوية والترويسة
+    </button>
+  </div>
+
+</div>
+
+<!-- حاوية الطباعة الرسمية -->
+<div id="printSection">
+  <div id="printContainer"></div>
+</div>
+
+<script>
+  // -------------------------------------------------------------
+  // إعدادات الربط بمشروع Supabase (المستخرج من لوحة التحكم الخاصة بك)
+  // -------------------------------------------------------------
+  const SUPABASE_PROJECT_REF = "fmlagjtxncpqbeoqldsq";
+  const SUPABASE_URL = `https://${SUPABASE_PROJECT_REF}.supabase.co`;
+  
+  // قم بلصق مفتاح anon key هنا إذا كان متوفراً لديك، أو أدخله عند تشغيل الصفحة
+  let SUPABASE_ANON_KEY = localStorage.getItem('sb_anon_key') || "";
+  
+  if (!SUPABASE_ANON_KEY) {
+    SUPABASE_ANON_KEY = prompt("يرجى إدخال مفتاح الوصول العام (anon public key) الخاص بمشروع Supabase للربط الفوري:");
+    if (SUPABASE_ANON_KEY) {
+      localStorage.setItem('sb_anon_key', SUPABASE_ANON_KEY.trim());
+    }
+  }
+
+  const sbClient = (SUPABASE_ANON_KEY) ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+  let systemLists = {
+    shifts: ["صباحي", "مسائي", "ليلي"],
+    priorities: ["عاجل جداً", "هام", "روتيني"],
+    types: ["صيانة", "توفير", "قصور", "إشادة"],
+    statuses: ["بانتظار المعالجة", "قيد المتابعة", "تمت المعالجة"],
+    departments: [
+      "طوارئ الرجال", "طوارئ النساء", "العمليات", "العناية المركزة",
+      "قسم الرقود", "قسم الولادة", "المختبر وبنك الدم", "الصيانة والتشغيل",
+      "قسم النظافة والبيئة", "الحضانة", "التحصين", "تخطيط القلب والايكو",
+      "الأشعة السينية X-ray", "الأشعة التلفزيونية", "عيادة الفم والأسنان",
+      "عيادة العظام", "عيادة الباطنية", "عيادة الأطفال"
+    ]
+  };
+
+  let rawRecords = [];
+  let filteredRecords = [];
+
+  window.addEventListener('DOMContentLoaded', async () => {
+    loadLocalSettings();
+    if (sbClient) {
+      await fetchDropdownsFromSupabase();
+      await loadHeaderSettings();
+    }
+    populateSelects();
+    addNewItemRow();
+  });
+
+  function switchView(view) {
+    document.getElementById('viewTour').style.display = (view === 'tour') ? 'block' : 'none';
+    document.getElementById('viewRecords').style.display = (view === 'records') ? 'block' : 'none';
+    document.getElementById('viewSettings').style.display = (view === 'settings') ? 'block' : 'none';
+
+    document.getElementById('tab1').classList.toggle('active', view === 'tour');
+    document.getElementById('tab2').classList.toggle('active', view === 'records');
+    document.getElementById('tab3').classList.toggle('active', view === 'settings');
+
+    if (view === 'records') fetchInspectionData();
+  }
+
+  async function fetchDropdownsFromSupabase() {
+    if (!sbClient) return;
+    try {
+      const { data, error } = await sbClient.from('system_dropdowns').select('*').order('sort_order', { ascending: true });
+      if (!error && data && data.length > 0) {
+        const getList = (cat) => data.filter(d => d.category === cat).map(d => d.val);
+        const s = getList('shift'); if (s.length) systemLists.shifts = s;
+        const p = getList('priority'); if (p.length) systemLists.priorities = p;
+        const t = getList('type'); if (t.length) systemLists.types = t;
+        const st = getList('status'); if (st.length) systemLists.statuses = st;
+        const dep = getList('department'); if (dep.length) systemLists.departments = dep;
+      }
+    } catch(e) { console.error(e); }
+  }
+
+  function populateSelects() {
+    document.getElementById('tourShift').innerHTML = systemLists.shifts.map(s => `<option value="${s}">${s}</option>`).join('');
+    document.getElementById('tourDept').innerHTML = systemLists.departments.map(d => `<option value="${d}">${d}</option>`).join('');
+
+    document.getElementById('filterDept').innerHTML = '<option value="">-- كل الأقسام --</option>' + systemLists.departments.map(d => `<option value="${d}">${d}</option>`).join('');
+    document.getElementById('filterType').innerHTML = '<option value="">-- كل الأنواع --</option>' + systemLists.types.map(t => `<option value="${t}">${t}</option>`).join('');
+    document.getElementById('filterStatus').innerHTML = '<option value="">-- كل الحالات --</option>' + systemLists.statuses.map(s => `<option value="${s}">${s}</option>`).join('');
+  }
+
+  function addNewItemRow() {
+    const container = document.getElementById('itemsContainer');
+    const rowId = 'row-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    const div = document.createElement('div');
+    div.className = 'item-box';
+    div.id = rowId;
+    div._imagesList = [];
+
+    div.innerHTML = `
+      <div class="item-top">
+        <input type="text" placeholder="الموقع / الغرفة (مثال: غرفة 2)" class="r-loc" required>
+        <select class="r-type">${systemLists.types.map(t => `<option value="${t}">${t}</option>`).join('')}</select>
+        <select class="r-prio">${systemLists.priorities.map((p, idx) => `<option value="${p}" ${idx === 1 ? 'selected' : ''}>${p}</option>`).join('')}</select>
+        <button type="button" class="btn-del" onclick="removeRow('${rowId}')">✕</button>
+      </div>
+      <textarea rows="2" placeholder="الملاحظة المرصودة بالتفصيل..." class="r-desc" required></textarea>
+      <div class="item-bot">
+        <input type="text" placeholder="الموظف المستلم بالقسم" class="r-staff" required>
+        <input type="text" placeholder="الإجراء المطلوب" class="r-act">
+      </div>
+      <div style="margin-top:10px; display:flex; gap:12px; align-items:center;">
+        <label class="btn" style="background:#e0f2fe; color:#0369a1; cursor:pointer; font-size:12px; padding:6px 12px;">
+          📷 إرفاق صور التوثيق
+          <input type="file" multiple accept="image/*" style="display:none;" onchange="handleItemImages(this, '${rowId}')">
+        </label>
+        <span class="img-counter" style="font-size:12px; color:var(--text-muted); font-weight:700;">لم يتم إرفاق صور</span>
+      </div>
+    `;
+    container.appendChild(div);
+  }
+
+  function removeRow(rowId) {
+    const container = document.getElementById('itemsContainer');
+    if (container.children.length > 1) {
+      document.getElementById(rowId)?.remove();
+    } else {
+      alert('يجب الإبقاء على ملاحظة واحدة على الأقل في الجولة.');
+    }
+  }
+
+  function handleItemImages(input, rowId) {
+    const row = document.getElementById(rowId);
+    row._imagesList = Array.from(input.files);
+    row.querySelector('.img-counter').innerText = `✓ تم تجهيز ${row._imagesList.length} صور للرفع`;
+  }
+
+  async function submitTourToSupabase(e) {
+    e.preventDefault();
+    if (!sbClient) return alert('يرجى ضبط مفاتيح Supabase أولاً للتمكن من الحفظ.');
+
+    const btn = document.getElementById('btnSubmitTour');
+    const msg = document.getElementById('msgAlert');
+    btn.disabled = true;
+    msg.style.display = 'block';
+    msg.style.background = '#e0f2fe';
+    msg.style.color = '#0369a1';
+    msg.innerText = 'جاري حفظ الجولة ورفع الصور إلى السحابة...';
+
+    const roundCode = 'QRD-' + Date.now().toString().slice(-5);
+    const roundPayload = {
+      round_code: roundCode,
+      inspector_name: document.getElementById('inspectorName').value.trim(),
+      shift: document.getElementById('tourShift').value,
+      department: document.getElementById('tourDept').value
+    };
+
+    try {
+      const { data: roundRes, error: rErr } = await sbClient.from('inspection_rounds').insert([roundPayload]).select();
+      if (rErr) throw rErr;
+      const roundId = roundRes[0].id;
+
+      const boxes = document.querySelectorAll('#itemsContainer .item-box');
+      for (const box of boxes) {
+        let uploadedUrls = [];
+        if (box._imagesList && box._imagesList.length > 0) {
+          for (const file of box._imagesList) {
+            const path = `${roundCode}/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+            const { error: upErr } = await sbClient.storage.from('inspection-media').upload(path, file);
+            if (!upErr) {
+              const { data: urlData } = sbClient.storage.from('inspection-media').getPublicUrl(path);
+              uploadedUrls.push(urlData.publicUrl);
+            }
+          }
+        }
+
+        await sbClient.from('inspection_items').insert([{
+          round_id: roundId,
+          location: box.querySelector('.r-loc').value.trim(),
+          description: box.querySelector('.r-desc').value.trim(),
+          item_type: box.querySelector('.r-type').value,
+          priority: box.querySelector('.r-prio').value,
+          staff_name: box.querySelector('.r-staff').value.trim(),
+          corrective_action: box.querySelector('.r-act').value.trim() || 'قيد المتابعة',
+          images: uploadedUrls
+        }]);
+      }
+
+      msg.style.background = '#dcfce7';
+      msg.style.color = '#15803d';
+      msg.innerHTML = `✓ تم تسجيل واعتماد الجولة بنجاح برقم: <b>${roundCode}</b>`;
+      document.getElementById('tourForm').reset();
+      document.getElementById('itemsContainer').innerHTML = '';
+      addNewItemRow();
+    } catch (err) {
+      msg.style.background = '#fee2e2';
+      msg.style.color = '#b91c1c';
+      msg.innerText = 'فشل الحفظ: ' + err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function fetchInspectionData() {
+    if (!sbClient) return;
+    document.getElementById('recordsCountLbl').innerText = 'جاري جلب البيانات...';
+    try {
+      const { data, error } = await sbClient
+        .from('inspection_items')
+        .select('*, inspection_rounds(*)')
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        rawRecords = data;
+        applyFilters();
+      }
+    } catch(e) { console.error(e); }
+  }
+
+  function applyFilters() {
+    const fFrom = document.getElementById('filterFrom').value;
+    const fTo = document.getElementById('filterTo').value;
+    const fDept = document.getElementById('filterDept').value.trim().toLowerCase();
+    const fType = document.getElementById('filterType').value;
+    const fStatus = document.getElementById('filterStatus').value;
+
+    filteredRecords = rawRecords.filter(r => {
+      const date = r.inspection_rounds?.inspection_date || '';
+      const dept = (r.inspection_rounds?.department || '').toLowerCase();
+      if (fFrom && date < fFrom) return false;
+      if (fTo && date > fTo) return false;
+      if (fDept && !dept.includes(fDept)) return false;
+      if (fType && r.item_type !== fType) return false;
+      if (fStatus && r.status !== fStatus) return false;
+      return true;
+    });
+
+    document.getElementById('recordsCountLbl').innerText = `تم العثور على (${filteredRecords.length}) سجل`;
+
+    const tbody = document.getElementById('recordsTableBody');
+    tbody.innerHTML = '';
+    filteredRecords.forEach((item, idx) => {
+      const isDone = item.status === 'تمت المعالجة';
+      const statusClass = isDone ? 'status-done' : 'status-pending';
+      const icon = isDone ? '✓ ' : '⏳ ';
+
+      let imgsHtml = '—';
+      if (item.images && item.images.length > 0) {
+        imgsHtml = item.images.map((url, i) => `<a href="${url}" target="_blank" class="badge-img">صورة ${i+1}</a>`).join('');
+      }
+
+      tbody.innerHTML += `
+        <tr>
+          <td>${idx + 1}</td>
+          <td>${item.inspection_rounds?.inspection_date || '—'}</td>
+          <td style="font-weight:bold;">${item.inspection_rounds?.round_code || '—'}</td>
+          <td style="text-align:right;">${item.description}</td>
+          <td>${item.inspection_rounds?.department || ''} ${item.location ? ' - ' + item.location : ''}</td>
+          <td>${item.item_type}</td>
+          <td>${item.priority}</td>
+          <td>${item.staff_name || '—'}</td>
+          <td>${item.corrective_action || '—'}</td>
+          <td>
+            <button class="btn-status ${statusClass}" onclick="toggleStatus('${item.id}', '${item.status}')">
+              ${icon} ${item.status}
+            </button>
+          </td>
+          <td>${imgsHtml}</td>
+        </tr>
+      `;
+    });
+  }
+
+  async function toggleStatus(itemId, currentStatus) {
+    if (!sbClient) return;
+    const nextStatus = (currentStatus === 'تمت المعالجة') ? 'بانتظار المعالجة' : 'تمت المعالجة';
+    const { error } = await sbClient.from('inspection_items').update({ status: nextStatus }).eq('id', itemId);
+    if (!error) fetchInspectionData();
+  }
+
+  // تخصيص المظهر والبروفايل
+  function updateThemeColor(color) {
+    document.documentElement.style.setProperty('--primary', color);
+    localStorage.setItem('hospital_theme_color', color);
+  }
+
+  function toggleDarkMode() {
+    document.body.classList.toggle('dark-mode');
+    localStorage.setItem('hospital_dark_mode', document.body.classList.contains('dark-mode'));
+  }
+
+  function loadLocalSettings() {
+    const savedColor = localStorage.getItem('hospital_theme_color');
+    if (savedColor) {
+      updateThemeColor(savedColor);
+      document.getElementById('themeColorPicker').value = savedColor;
+    }
+    if (localStorage.getItem('hospital_dark_mode') === 'true') {
+      document.body.classList.add('dark-mode');
+    }
+    const savedAvatar = localStorage.getItem('hospital_user_avatar');
+    if (savedAvatar) {
+      document.getElementById('topBarAvatar').src = savedAvatar;
+    }
+  }
+
+  async function uploadProfileAvatar(input) {
+    if (!input.files || input.files.length === 0 || !sbClient) return;
+    const file = input.files[0];
+    const path = `user_avatar_${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+    const { error } = await sbClient.storage.from('avatars').upload(path, file);
+    if (!error) {
+      const { data } = sbClient.storage.from('avatars').getPublicUrl(path);
+      document.getElementById('topBarAvatar').src = data.publicUrl;
+      localStorage.setItem('hospital_user_avatar', data.publicUrl);
+      alert('✓ تم تحديث صورة البروفايل بنجاح');
+    } else {
+      alert('خطأ أثناء رفع الصورة: ' + error.message);
+    }
+  }
+
+  async function saveHeaderSettings() {
+    const payload = {
+      country_title: document.getElementById('repCountry').value,
+      ministry_title: document.getElementById('repMinistry').value,
+      office_title: document.getElementById('repOffice').value,
+      facility_name: document.getElementById('repFacility').value,
+      country_title_en: document.getElementById('repCountryEn').value,
+      ministry_title_en: document.getElementById('repMinistryEn').value,
+      office_title_en: document.getElementById('repOfficeEn').value,
+      facility_name_en: document.getElementById('repFacilityEn').value,
+      logo_url: document.getElementById('repLogo').value,
+      margin_top: parseInt(document.getElementById('repMarginTop').value, 10),
+      margin_bottom: parseInt(document.getElementById('repMarginBottom').value, 10),
+      margin_right: parseInt(document.getElementById('repMarginRight').value, 10),
+      margin_left: parseInt(document.getElementById('repMarginLeft').value, 10)
+    };
+
+    localStorage.setItem('hospital_header_settings', JSON.stringify(payload));
+
+    if (sbClient) {
+      await sbClient.from('report_settings').upsert({ id: '00000000-0000-0000-0000-000000000001', ...payload });
+    }
+
+    const name = document.getElementById('officerNameInput').value;
+    const role = document.getElementById('officerRoleInput').value;
+    document.getElementById('topBarName').innerText = name;
+    document.getElementById('topBarRole').innerText = role;
+
+    alert('✓ تم حفظ إعدادات الهوية والترويسة بنجاح.');
+  }
+
+  async function loadHeaderSettings() {
+    let s = null;
+    if (sbClient) {
+      const { data } = await sbClient.from('report_settings').select('*').single();
+      if (data) s = data;
+    }
+    if (!s) {
+      const cached = localStorage.getItem('hospital_header_settings');
+      if (cached) s = JSON.parse(cached);
+    }
+    if (s) {
+      document.getElementById('repCountry').value = s.country_title || 'الجمهورية اليمنية';
+      document.getElementById('repMinistry').value = s.ministry_title || 'وزارة الصحة والبيئة';
+      document.getElementById('repOffice').value = s.office_title || 'مكتب الصحة ــ محافظة صنعاء';
+      document.getElementById('repFacility').value = s.facility_name || 'مستشفى الشهيد أبو حرب الملصي';
+      document.getElementById('repCountryEn').value = s.country_title_en || 'Republic of Yemen';
+      document.getElementById('repMinistryEn').value = s.ministry_title_en || 'Ministry of Health and Environment';
+      document.getElementById('repOfficeEn').value = s.office_title_en || 'Health office - Sanaa Governorate';
+      document.getElementById('repFacilityEn').value = s.facility_name_en || 'Martyr Abu Harb AL-Molsi Hospital';
+      document.getElementById('repLogo').value = s.logo_url || '';
+      document.getElementById('repMarginTop').value = s.margin_top || 5;
+      document.getElementById('repMarginBottom').value = s.margin_bottom || 10;
+      document.getElementById('repMarginRight').value = s.margin_right || 12;
+      document.getElementById('repMarginLeft').value = s.margin_left || 12;
+    }
+  }
+
+  function printOfficialDocument(docType) {
+    if (filteredRecords.length === 0) return alert('لا توجد سجلات مطابقة للطباعة حالياً.');
+
+    const printBox = document.getElementById('printContainer');
+    const cAr = document.getElementById('repCountry').value;
+    const mAr = document.getElementById('repMinistry').value;
+    const oAr = document.getElementById('repOffice').value;
+    const fAr = document.getElementById('repFacility').value;
+    const cEn = document.getElementById('repCountryEn').value;
+    const mEn = document.getElementById('repMinistryEn').value;
+    const oEn = document.getElementById('repOfficeEn').value;
+    const fEn = document.getElementById('repFacilityEn').value;
+    const logo = document.getElementById('repLogo').value;
+
+    const mTop = document.getElementById('repMarginTop').value || 5;
+    const mBottom = document.getElementById('repMarginBottom').value || 10;
+    const mRight = document.getElementById('repMarginRight').value || 12;
+    const mLeft = document.getElementById('repMarginLeft').value || 12;
+
+    const officialHeader = `
+      <table dir="rtl" style="width:100%; border:none; border-bottom:2px solid #1B365D; margin-bottom:8px; padding-bottom:4px;">
+        <tr style="border:none;">
+          <td style="width:33%; border:none; text-align:right; font-weight:bold; font-size:10pt; line-height:1.35; color:#1B365D;">
+            ${cAr}<br>${mAr}<br>${oAr}<br><span style="font-size:11pt; color:#000;">${fAr}</span>
+          </td>
+          <td style="width:34%; border:none; text-align:center;">
+            <img src="${logo}" style="max-height:85px; width:auto;" alt="شعار المستشفى">
+          </td>
+          <td dir="ltr" style="width:33%; border:none; text-align:left; font-size:9pt; line-height:1.3; color:#1B365D;">
+            <b>${cEn}</b><br>${mEn}<br>${oEn}<br><b>${fEn}</b>
+          </td>
+        </tr>
+      </table>
+    `;
+
+    if (docType === 'log') {
+      let trs = filteredRecords.map((r, i) => `
+        <tr>
+          <td style="border:1px solid #000; padding:4px;">${i+1}</td>
+          <td style="border:1px solid #000; padding:4px;">${r.inspection_rounds?.inspection_date || ''}</td>
+          <td style="border:1px solid #000; padding:4px; font-weight:bold;">${r.inspection_rounds?.round_code || ''}</td>
+          <td style="border:1px solid #000; padding:4px; text-align:right;">${r.description}</td>
+          <td style="border:1px solid #000; padding:4px;">${r.inspection_rounds?.department || ''} ${r.location ? ' - ' + r.location : ''}</td>
+          <td style="border:1px solid #000; padding:4px;">${r.item_type}</td>
+          <td style="border:1px solid #000; padding:4px;">${r.priority}</td>
+          <td style="border:1px solid #000; padding:4px;">${r.staff_name || '—'}</td>
+          <td style="border:1px solid #000; padding:4px; text-align:right;">${r.corrective_action || 'قيد المتابعة'}</td>
+          <td style="border:1px solid #000; padding:4px; font-weight:bold;">${r.status}</td>
+        </tr>
+      `).join('');
+
+      printBox.innerHTML = `
+        <style>
+          @page { size: landscape; margin: 0; }
+          #printContainer { padding: ${mTop}pt ${mLeft}pt ${mBottom}pt ${mRight}pt; font-family: 'Cairo', sans-serif; direction: rtl; }
+          table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+          th { background: #f1f5f9; border: 1px solid #000; padding: 5px; }
+        </style>
+        ${officialHeader}
+        <div style="text-align:center; margin-bottom:8px;">
+          <h2 style="margin:0; color:#0284c7; font-size:12.5pt;">سجل المرور والتفتيش اليومي لسلامة وجودة المرافق</h2>
+          <span style="font-size:8.5pt; color:#64748b;">Daily Quality & Safety Rounds Log | إدارة الجودة وسلامة المرضى</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:4%;">م</th>
+              <th style="width:9%;">التاريخ</th>
+              <th style="width:9%;">رقم الطلب</th>
+              <th style="width:23%;">الملاحظة بالتفصيل</th>
+              <th style="width:13%;">القسم والموقع</th>
+              <th style="width:8%;">النوع</th>
+              <th style="width:7%;">الأهمية</th>
+              <th style="width:10%;">المستلم</th>
+              <th style="width:11%;">الإجراء المطلوب</th>
+              <th style="width:6%;">الحالة</th>
+            </tr>
+          </thead>
+          <tbody>${trs}</tbody>
+        </table>
+        <table dir="rtl" style="border:none; margin-top:20px; width:100%;">
+          <tr style="border:none;">
+            <td style="border:none; width:33%; text-align:right; font-size:9pt;"><b>أخصائي الجودة:</b> معتمد إلكترونياً</td>
+            <td style="border:none; width:33%; text-align:center; font-size:9pt;"><b>مشرف القسم:</b> ........................</td>
+            <td style="border:none; width:33%; text-align:left; font-size:9pt;"><b>مدير المستشفى:</b> ........................</td>
+          </tr>
+        </table>
+      `;
+    } else {
+      let trs = filteredRecords.map((r, i) => `
+        <tr>
+          <td style="border:1px solid #000; padding:5px;">${i+1}</td>
+          <td style="border:1px solid #000; padding:5px;">${r.inspection_rounds?.department || ''} ${r.location ? ' - ' + r.location : ''}</td>
+          <td style="border:1px solid #000; padding:5px;">${r.item_type}</td>
+          <td style="border:1px solid #000; padding:5px; text-align:right;">${r.description}</td>
+          <td style="border:1px solid #000; padding:5px; text-align:right;">${r.corrective_action || 'قيد المتابعة'}</td>
+          <td style="border:1px solid #000; padding:5px;">خلال 24-48 ساعة</td>
+          <td style="border:1px solid #000; padding:5px; font-weight:bold;">${r.status}</td>
+        </tr>
+      `).join('');
+
+      printBox.innerHTML = `
+        <style>
+          @page { size: portrait; margin: 0; }
+          #printContainer { padding: ${mTop}pt ${mLeft}pt ${mBottom}pt ${mRight}pt; font-family: 'Cairo', sans-serif; direction: rtl; }
+          table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+          th { background: #f1f5f9; border: 1px solid #000; padding: 6px; }
+        </style>
+        ${officialHeader}
+        <div style="text-align:center; margin-bottom:8px;">
+          <h2 style="margin:0; color:#0f766e; font-size:13pt;">إدارة الجودة وسلامة المرضى</h2>
+          <h3 style="margin:2px 0 0 0; text-decoration:underline; font-size:11pt;">مذكرة إحالة وإشعار يومي بنتائج جولة المرور</h3>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:5%;">م</th>
+              <th style="width:17%;">القسم</th>
+              <th style="width:12%;">النوع</th>
+              <th style="width:31%;">بيان المشكلة بالتفصيل</th>
+              <th style="width:15%;">الإجراء المطلوب</th>
+              <th style="width:10%;">المهلة</th>
+              <th style="width:10%;">الحالة</th>
+            </tr>
+          </thead>
+          <tbody>${trs}</tbody>
+        </table>
+        <div style="margin-top:14px; border:1px dashed #64748b; padding:10px; font-size:9.5pt;">
+          <b>خاص برد وإفادة القسم المعني:</b><br>
+          [  ] تم رفع بلاغ صيانة رقم: ......................... تاريخ:    /    / 202 م<br>
+          [  ] تم رفع طلب توفير احتياج رقم: ................... تاريخ:    /    / 202 م
+        </div>
+      `;
+    }
+
+    window.print();
+  }
+</script>
+</body>
+</html>
